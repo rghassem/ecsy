@@ -22,6 +22,7 @@ export default class Query {
     }
 
     this.entities = [];
+    this.entitySet = new Set();
 
     this.eventDispatcher = new EventDispatcher();
 
@@ -37,6 +38,7 @@ export default class Query {
         // @todo ??? this.addEntity(entity); => preventing the event to be generated
         entity.queries.push(this);
         this.entities.push(entity);
+        this.entitySet.add(entity.id);
       }
     }
   }
@@ -48,6 +50,7 @@ export default class Query {
   addEntity(entity) {
     entity.queries.push(this);
     this.entities.push(entity);
+    this.entitySet.add(entity.id);
 
     this.eventDispatcher.dispatchEvent(Query.prototype.ENTITY_ADDED, entity);
   }
@@ -57,18 +60,23 @@ export default class Query {
    * @param {Entity} entity
    */
   removeEntity(entity) {
-    let index = this.entities.indexOf(entity);
-    if (~index) {
+    if (this.hasEntity(entity)) {
+      let index = this.entities.indexOf(entity);
       this.entities.splice(index, 1);
 
       index = entity.queries.indexOf(this);
       entity.queries.splice(index, 1);
+      this.entitySet.delete(entity.id);
 
       this.eventDispatcher.dispatchEvent(
         Query.prototype.ENTITY_REMOVED,
         entity
       );
     }
+  }
+
+  hasEntity(entity) {
+    return this.entitySet.has(entity.id);
   }
 
   match(entity) {

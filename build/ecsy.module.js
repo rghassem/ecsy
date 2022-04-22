@@ -149,6 +149,7 @@ class Query {
     }
 
     this.entities = [];
+    this.entitySet = new Set();
 
     this.eventDispatcher = new EventDispatcher();
 
@@ -164,6 +165,7 @@ class Query {
         // @todo ??? this.addEntity(entity); => preventing the event to be generated
         entity.queries.push(this);
         this.entities.push(entity);
+        this.entitySet.add(entity.id);
       }
     }
   }
@@ -175,6 +177,7 @@ class Query {
   addEntity(entity) {
     entity.queries.push(this);
     this.entities.push(entity);
+    this.entitySet.add(entity.id);
 
     this.eventDispatcher.dispatchEvent(Query.prototype.ENTITY_ADDED, entity);
   }
@@ -184,18 +187,23 @@ class Query {
    * @param {Entity} entity
    */
   removeEntity(entity) {
-    let index = this.entities.indexOf(entity);
-    if (~index) {
+    if (this.hasEntity(entity)) {
+      let index = this.entities.indexOf(entity);
       this.entities.splice(index, 1);
 
       index = entity.queries.indexOf(this);
       entity.queries.splice(index, 1);
+      this.entitySet.delete(entity.id);
 
       this.eventDispatcher.dispatchEvent(
         Query.prototype.ENTITY_REMOVED,
         entity
       );
     }
+  }
+
+  hasEntity(entity) {
+    return this.entitySet.has(entity.id);
   }
 
   match(entity) {
@@ -626,14 +634,18 @@ class QueryManager {
 
     // Queries indexed by a unique identifier for the components it has
     this._queries = {};
+    this.componentsToQueries = new Map();
   }
 
   onEntityRemoved(entity) {
-    for (var queryName in this._queries) {
-      var query = this._queries[queryName];
-      if (entity.queries.indexOf(query) !== -1) {
-        query.removeEntity(entity);
-      }
+    // for (var queryName in this._queries) {
+    //   var query = this._queries[queryName];
+    //   if (entity.queries.indexOf(query) !== -1) {
+    //     query.removeEntity(entity);
+    //   }
+    // }
+    for (const query of entity.queries) {
+      query.removeEntity(entity);
     }
   }
 
@@ -646,12 +658,11 @@ class QueryManager {
     // @todo Use bitmask for checking components?
 
     // Check each indexed query to see if we need to add this entity to the list
-    for (var queryName in this._queries) {
-      var query = this._queries[queryName];
-
+    const candidates = this.componentsToQueries.get(Component);
+    if (!candidates) { return; }    for (const query of candidates) {
       if (
         !!~query.NotComponents.indexOf(Component) &&
-        ~query.entities.indexOf(entity)
+        query.hasEntity(entity)
       ) {
         query.removeEntity(entity);
         continue;
@@ -664,7 +675,7 @@ class QueryManager {
       if (
         !~query.Components.indexOf(Component) ||
         !query.match(entity) ||
-        ~query.entities.indexOf(entity)
+        query.hasEntity(entity)
       )
         continue;
 
@@ -678,12 +689,13 @@ class QueryManager {
    * @param {Component} Component Component to remove from the entity
    */
   onEntityComponentRemoved(entity, Component) {
-    for (var queryName in this._queries) {
-      var query = this._queries[queryName];
+    const candidates = this.componentsToQueries.get(Component);
+    if (!candidates) return;
+    for (const query of candidates) {
 
       if (
         !!~query.NotComponents.indexOf(Component) &&
-        !~query.entities.indexOf(entity) &&
+        !query.hasEntity(entity) &&
         query.match(entity)
       ) {
         query.addEntity(entity);
@@ -692,7 +704,7 @@ class QueryManager {
 
       if (
         !!~query.Components.indexOf(Component) &&
-        !!~query.entities.indexOf(entity) &&
+        query.hasEntity(entity) &&
         !query.match(entity)
       ) {
         query.removeEntity(entity);
@@ -710,6 +722,18 @@ class QueryManager {
     var query = this._queries[key];
     if (!query) {
       this._queries[key] = query = new Query(Components, this._world);
+      for (let component of Components) {
+
+        //Extract the component from NotComponents
+        if (typeof component === "object") {
+          component = component.Component;
+        }
+
+        if (!this.componentsToQueries.has(component)) {
+          this.componentsToQueries.set(component, []);
+        }
+        this.componentsToQueries.get(component).push(query);
+      }
     }
     return query;
   }
@@ -1099,7 +1123,7 @@ class ComponentManager {
 }
 
 var name = "ecsy";
-var version = "0.2.5";
+var version = "0.2.6";
 var description = "Entity Component System in JS";
 var main = "build/ecsy.js";
 var module = "build/ecsy.module.js";
