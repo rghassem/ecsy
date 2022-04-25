@@ -64,8 +64,7 @@ export class System {
           validEvents.forEach(eventName => {
             if (!this.execute) {
               console.warn(
-                `System '${
-                  this.constructor.name
+                `System '${this.constructor.name
                 }' has defined listen events (${validEvents.join(
                   ", "
                 )}) for query '${queryName}' but it does not implement the 'execute' method.`
@@ -85,9 +84,9 @@ export class System {
                     Query.prototype.COMPONENT_CHANGED,
                     entity => {
                       // Avoid duplicates
-                      if (eventList.indexOf(entity) === -1) {
-                        eventList.push(entity);
-                      }
+                      //if (eventList.indexOf(entity) === -1) {
+                      eventList.push(entity);
+                      //}
                     }
                   );
                 } else if (Array.isArray(event)) {
@@ -96,12 +95,12 @@ export class System {
                     Query.prototype.COMPONENT_CHANGED,
                     (entity, changedComponent) => {
                       // Avoid duplicates
-                      if (
-                        event.indexOf(changedComponent.constructor) !== -1 &&
-                        eventList.indexOf(entity) === -1
-                      ) {
-                        eventList.push(entity);
-                      }
+                      // if (
+                      //   event.indexOf(changedComponent.constructor) !== -1 &&
+                      //   eventList.indexOf(entity) === -1
+                      // ) {
+                      eventList.push(entity);
+                      //}
                     }
                   );
                 } else {
@@ -133,8 +132,8 @@ export class System {
                   eventMapping[eventName],
                   entity => {
                     // @fixme overhead?
-                    if (eventList.indexOf(entity) === -1)
-                      eventList.push(entity);
+                    //if (eventList.indexOf(entity) === -1)
+                    eventList.push(entity);
                   }
                 );
               }
