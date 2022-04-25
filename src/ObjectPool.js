@@ -14,11 +14,11 @@ export default class ObjectPool {
 
     this.createElement = extraArgs
       ? () => {
-          return new T(...extraArgs);
-        }
+        return new T(...extraArgs);
+      }
       : () => {
-          return new T();
-        };
+        return new T();
+      };
 
     if (typeof initialSize !== "undefined") {
       this.expand(initialSize);
@@ -28,7 +28,7 @@ export default class ObjectPool {
   acquire() {
     // Grow the list by 20%ish if we're out
     if (this.freeList.length <= 0) {
-      this.expand(Math.round(this.count * 0.2) + 1);
+      this.expand(Math.round(this.count) + 1);
     }
 
     var item = this.freeList.pop();
