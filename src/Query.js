@@ -63,9 +63,6 @@ export default class Query {
     if (this.hasEntity(entity)) {
       const index = entity.queries.get(this);
 
-      // let index = this.entities.indexOf(entity);
-      // this.entities.splice(index, 1);
-
       //swap with last element of entities before removing in order to prevent disturbing other indices
       const lastEntity = this.entities.pop();
       if (lastEntity !== entity) {
