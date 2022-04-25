@@ -28,7 +28,8 @@ export default class ObjectPool {
   acquire() {
     // Grow the list by 20%ish if we're out
     if (this.freeList.length <= 0) {
-      this.expand(Math.round(this.count) + 1);
+      //this.expand(Math.round(this.count * 0.2) + 1);
+      this.expand(Math.max(this.count * 2, 10));
     }
 
     var item = this.freeList.pop();
