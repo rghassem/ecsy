@@ -15,11 +15,16 @@ export default class QueryManager {
   }
 
   onEntityRemoved(entity) {
-    for (var queryName in this._queries) {
-      var query = this._queries[queryName];
-      if (entity.queries.indexOf(query) !== -1) {
-        query.removeEntity(entity);
-      }
+    const queries = entity.queries.keys();
+
+    //Avoid iterator invalidation
+    const queryBuffer = [];
+    for (const query of queries) {
+      queryBuffer.push(query);
+    }
+
+    for (const query of queryBuffer) {
+      query.removeEntity(entity);
     }
   }
 

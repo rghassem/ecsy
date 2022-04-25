@@ -22,7 +22,7 @@ export class Entity {
     this._componentsToRemove = {};
 
     // Queries where the entity is added
-    this.queries = [];
+    this.queries = new Map();
 
     // Used for deferred removal
     this._ComponentTypesToRemove = [];
@@ -63,8 +63,8 @@ export class Entity {
 
   getMutableComponent(Component) {
     var component = this._components[Component.name];
-    for (var i = 0; i < this.queries.length; i++) {
-      var query = this.queries[i];
+    const queries = this.queries.keys();
+    for (const query of queries) {
       // @todo accelerate this check. Maybe having query._Components as an object
       // @todo add Not components
       if (query.reactive && query.Components.indexOf(Component) !== -1) {
@@ -124,7 +124,7 @@ export class Entity {
     this.id = nextId++;
     this._world = null;
     this._ComponentTypes.length = 0;
-    this.queries.length = 0;
+    this.queries.clear();
     this._components = {};
   }
 

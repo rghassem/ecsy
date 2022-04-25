@@ -163,8 +163,8 @@ class Query {
       var entity = manager._entities[i];
       if (this.match(entity)) {
         // @todo ??? this.addEntity(entity); => preventing the event to be generated
-        entity.queries.push(this);
-        this.entities.push(entity);
+        const length = this.entities.push(entity);
+        entity.queries.set(this, length - 1);
         this.entitySet.add(entity.id);
       }
     }
@@ -175,8 +175,8 @@ class Query {
    * @param {Entity} entity
    */
   addEntity(entity) {
-    entity.queries.push(this);
-    this.entities.push(entity);
+    const length = this.entities.push(entity);
+    entity.queries.set(this, length - 1);
     this.entitySet.add(entity.id);
 
     this.eventDispatcher.dispatchEvent(Query.prototype.ENTITY_ADDED, entity);
@@ -188,11 +188,19 @@ class Query {
    */
   removeEntity(entity) {
     if (this.hasEntity(entity)) {
-      let index = this.entities.indexOf(entity);
-      this.entities.splice(index, 1);
+      const index = entity.queries.get(this);
 
-      index = entity.queries.indexOf(this);
-      entity.queries.splice(index, 1);
+      // let index = this.entities.indexOf(entity);
+      // this.entities.splice(index, 1);
+
+      //swap with last element of entities before removing in order to prevent disturbing other indices
+      const lastEntity = this.entities.pop();
+      if (lastEntity !== entity) {
+        this.entities[index] = lastEntity;
+        lastEntity.queries.set(this, index);
+      }
+
+      entity.queries.delete(this);
       this.entitySet.delete(entity.id);
 
       this.eventDispatcher.dispatchEvent(
@@ -638,13 +646,15 @@ class QueryManager {
   }
 
   onEntityRemoved(entity) {
-    // for (var queryName in this._queries) {
-    //   var query = this._queries[queryName];
-    //   if (entity.queries.indexOf(query) !== -1) {
-    //     query.removeEntity(entity);
-    //   }
-    // }
-    for (const query of entity.queries) {
+    const queries = entity.queries.keys();
+
+    //Avoid iterator invalidation
+    const queryBuffer = [];
+    for (const query of queries) {
+      queryBuffer.push(query);
+    }
+
+    for (const query of queryBuffer) {
       query.removeEntity(entity);
     }
   }
@@ -1239,7 +1249,7 @@ class Entity {
     this._componentsToRemove = {};
 
     // Queries where the entity is added
-    this.queries = [];
+    this.queries = new Map();
 
     // Used for deferred removal
     this._ComponentTypesToRemove = [];
@@ -1280,8 +1290,8 @@ class Entity {
 
   getMutableComponent(Component) {
     var component = this._components[Component.name];
-    for (var i = 0; i < this.queries.length; i++) {
-      var query = this.queries[i];
+    const queries = this.queries.keys();
+    for (const query of queries) {
       // @todo accelerate this check. Maybe having query._Components as an object
       // @todo add Not components
       if (query.reactive && query.Components.indexOf(Component) !== -1) {
@@ -1341,7 +1351,7 @@ class Entity {
     this.id = nextId++;
     this._world = null;
     this._ComponentTypes.length = 0;
-    this.queries.length = 0;
+    this.queries.clear();
     this._components = {};
   }
 
