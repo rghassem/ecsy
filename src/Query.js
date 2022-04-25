@@ -22,7 +22,6 @@ export default class Query {
     }
 
     this.entities = [];
-    this.entitySet = new Set();
 
     this.eventDispatcher = new EventDispatcher();
 
@@ -38,7 +37,6 @@ export default class Query {
         // @todo ??? this.addEntity(entity); => preventing the event to be generated
         const length = this.entities.push(entity);
         entity.queries.set(this, length - 1);
-        this.entitySet.add(entity.id);
       }
     }
   }
@@ -50,7 +48,6 @@ export default class Query {
   addEntity(entity) {
     const length = this.entities.push(entity);
     entity.queries.set(this, length - 1);
-    this.entitySet.add(entity.id);
 
     this.eventDispatcher.dispatchEvent(Query.prototype.ENTITY_ADDED, entity);
   }
@@ -71,7 +68,6 @@ export default class Query {
       }
 
       entity.queries.delete(this);
-      this.entitySet.delete(entity.id);
 
       this.eventDispatcher.dispatchEvent(
         Query.prototype.ENTITY_REMOVED,
@@ -81,7 +77,7 @@ export default class Query {
   }
 
   hasEntity(entity) {
-    return this.entitySet.has(entity.id);
+    return entity.queries.has(this);
   }
 
   match(entity) {
