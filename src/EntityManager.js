@@ -92,9 +92,10 @@ export class EntityManager {
       if (component.copy) {
         component.copy(values);
       } else {
-        for (var name in values) {
-          component[name] = values[name];
-        }
+        Object.assign(component, values);
+        // for (var name in values) {
+        //   component[name] = values[name];
+        // }
       }
     }
 
