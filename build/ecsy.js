@@ -160,7 +160,6 @@
 	    }
 
 	    this.entities = [];
-	    this.entitySet = new Set();
 
 	    this.eventDispatcher = new EventDispatcher();
 
@@ -176,7 +175,6 @@
 	        // @todo ??? this.addEntity(entity); => preventing the event to be generated
 	        const length = this.entities.push(entity);
 	        entity.queries.set(this, length - 1);
-	        this.entitySet.add(entity.id);
 	      }
 	    }
 	  }
@@ -188,7 +186,6 @@
 	  addEntity(entity) {
 	    const length = this.entities.push(entity);
 	    entity.queries.set(this, length - 1);
-	    this.entitySet.add(entity.id);
 
 	    this.eventDispatcher.dispatchEvent(Query.prototype.ENTITY_ADDED, entity);
 	  }
@@ -201,9 +198,6 @@
 	    if (this.hasEntity(entity)) {
 	      const index = entity.queries.get(this);
 
-	      // let index = this.entities.indexOf(entity);
-	      // this.entities.splice(index, 1);
-
 	      //swap with last element of entities before removing in order to prevent disturbing other indices
 	      const lastEntity = this.entities.pop();
 	      if (lastEntity !== entity) {
@@ -212,7 +206,13 @@
 	      }
 
 	      entity.queries.delete(this);
-	      this.entitySet.delete(entity.id);
+
+
+	      //Defend against entity added and removed in the same frame causing invalid added query result
+	      if (this.addedSet && this.added && this.addedSet.has(entity)) {
+	        this.addedSet.delete(entity);
+	        this.added.splice(this.added.indexOf(entity), 1);
+	      }
 
 	      this.eventDispatcher.dispatchEvent(
 	        Query.prototype.ENTITY_REMOVED,
@@ -222,7 +222,7 @@
 	  }
 
 	  hasEntity(entity) {
-	    return this.entitySet.has(entity.id);
+	    return entity.queries.has(this);
 	  }
 
 	  match(entity) {
@@ -323,8 +323,7 @@
 	          validEvents.forEach(eventName => {
 	            if (!this.execute) {
 	              console.warn(
-	                `System '${
-                  this.constructor.name
+	                `System '${this.constructor.name
                 }' has defined listen events (${validEvents.join(
                   ", "
                 )}) for query '${queryName}' but it does not implement the 'execute' method.`
@@ -344,9 +343,9 @@
 	                    Query.prototype.COMPONENT_CHANGED,
 	                    entity => {
 	                      // Avoid duplicates
-	                      if (eventList.indexOf(entity) === -1) {
-	                        eventList.push(entity);
-	                      }
+	                      //if (eventList.indexOf(entity) === -1) {
+	                      eventList.push(entity);
+	                      //}
 	                    }
 	                  );
 	                } else if (Array.isArray(event)) {
@@ -354,25 +353,39 @@
 	                  query.eventDispatcher.addEventListener(
 	                    Query.prototype.COMPONENT_CHANGED,
 	                    (entity, changedComponent) => {
-	                      // Avoid duplicates
-	                      if (
-	                        event.indexOf(changedComponent.constructor) !== -1 &&
-	                        eventList.indexOf(entity) === -1
-	                      ) {
-	                        eventList.push(entity);
-	                      }
+	                      // Avoid duplicates //removed this check --reza
+	                      // if (
+	                      //   event.indexOf(changedComponent.constructor) !== -1 &&
+	                      //   eventList.indexOf(entity) === -1
+	                      // ) {
+	                      eventList.push(entity);
+	                      //}
 	                    }
 	                  );
 	                }
-	              } else {
-	                let eventList = (this.queries[queryName][eventName] = []);
+	              } else if (eventName === 'added') {
+	                let eventList = (this.queries[queryName].added = []);
+	                let eventSet = (this.queries[queryName].addedSet = new Set());
 
 	                query.eventDispatcher.addEventListener(
 	                  eventMapping[eventName],
 	                  entity => {
 	                    // @fixme overhead?
-	                    if (eventList.indexOf(entity) === -1)
-	                      eventList.push(entity);
+	                    //if (eventList.indexOf(entity) === -1)
+	                    eventSet.add(entity);
+	                    eventList.push(entity);
+	                  }
+	                );
+	              }
+	              else if (eventName === 'removed') {
+	                let eventList = (this.queries[queryName].removed = []);
+
+	                query.eventDispatcher.addEventListener(
+	                  eventMapping[eventName],
+	                  entity => {
+	                    // @fixme overhead?
+	                    //if (eventList.indexOf(entity) === -1) //just removed this check --reza
+	                    eventList.push(entity);
 	                  }
 	                );
 	              }
@@ -398,6 +411,7 @@
 	      var query = this.queries[queryName];
 	      if (query.added) {
 	        query.added.length = 0;
+	        query.addedSet.clear();
 	      }
 	      if (query.removed) {
 	        query.removed.length = 0;
@@ -596,11 +610,11 @@
 
 	    this.createElement = extraArgs
 	      ? () => {
-	          return new T(...extraArgs);
-	        }
+	        return new T(...extraArgs);
+	      }
 	      : () => {
-	          return new T();
-	        };
+	        return new T();
+	      };
 
 	    if (typeof initialSize !== "undefined") {
 	      this.expand(initialSize);
@@ -610,7 +624,8 @@
 	  acquire() {
 	    // Grow the list by 20%ish if we're out
 	    if (this.freeList.length <= 0) {
-	      this.expand(Math.round(this.count * 0.2) + 1);
+	      //this.expand(Math.round(this.count * 0.2) + 1);
+	      this.expand(Math.max(this.count * 2, 10));
 	    }
 
 	    var item = this.freeList.pop();
@@ -863,9 +878,10 @@
 	      if (component.copy) {
 	        component.copy(values);
 	      } else {
-	        for (var name in values) {
-	          component[name] = values[name];
-	        }
+	        Object.assign(component, values);
+	        // for (var name in values) {
+	        //   component[name] = values[name];
+	        // }
 	      }
 	    }
 

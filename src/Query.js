@@ -69,6 +69,13 @@ export default class Query {
 
       entity.queries.delete(this);
 
+
+      //Defend against entity added and removed in the same frame causing invalid added query result
+      if (this.addedSet && this.added && this.addedSet.has(entity)) {
+        this.addedSet.delete(entity);
+        this.added.splice(this.added.indexOf(entity), 1);
+      }
+
       this.eventDispatcher.dispatchEvent(
         Query.prototype.ENTITY_REMOVED,
         entity

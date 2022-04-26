@@ -94,7 +94,7 @@ export class System {
                   query.eventDispatcher.addEventListener(
                     Query.prototype.COMPONENT_CHANGED,
                     (entity, changedComponent) => {
-                      // Avoid duplicates
+                      // Avoid duplicates //removed this check --reza
                       // if (
                       //   event.indexOf(changedComponent.constructor) !== -1 &&
                       //   eventList.indexOf(entity) === -1
@@ -125,14 +125,28 @@ export class System {
                   });
                   */
                 }
-              } else {
-                let eventList = (this.queries[queryName][eventName] = []);
+              } else if (eventName === 'added') {
+                let eventList = (this.queries[queryName].added = []);
+                let eventSet = (this.queries[queryName].addedSet = new Set());
 
                 query.eventDispatcher.addEventListener(
                   eventMapping[eventName],
                   entity => {
                     // @fixme overhead?
                     //if (eventList.indexOf(entity) === -1)
+                    eventSet.add(entity);
+                    eventList.push(entity);
+                  }
+                );
+              }
+              else if (eventName === 'removed') {
+                let eventList = (this.queries[queryName].removed = []);
+
+                query.eventDispatcher.addEventListener(
+                  eventMapping[eventName],
+                  entity => {
+                    // @fixme overhead?
+                    //if (eventList.indexOf(entity) === -1) //just removed this check --reza
                     eventList.push(entity);
                   }
                 );
@@ -159,6 +173,7 @@ export class System {
       var query = this.queries[queryName];
       if (query.added) {
         query.added.length = 0;
+        query.addedSet.clear();
       }
       if (query.removed) {
         query.removed.length = 0;
