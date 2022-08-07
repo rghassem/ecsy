@@ -1,4 +1,4 @@
-import {Component, ComponentConstructor} from "./Component";
+import { Component, ComponentConstructor } from "./Component";
 import { Entity } from "./Entity";
 import { TagComponent } from './TagComponent';
 import { World } from "./World";
@@ -33,9 +33,9 @@ export abstract class System {
    * The results of the queries.
    * Should be used inside of execute.
    */
-  queries: {
+  readonly queries: {
     [queryName: string]: {
-      results: Entity[],
+      results: readonly Entity[],
       added?: Entity[],
       removed?: Entity[],
       changed?: Entity[],
@@ -67,7 +67,7 @@ export abstract class System {
 }
 
 export interface SystemConstructor<T extends System> {
-  new (...args: any): T;
+  new(...args: any): T;
 }
 
 export interface NotComponent {
@@ -78,4 +78,4 @@ export interface NotComponent {
 /**
  * Use the Not class to negate a component query.
  */
-export function Not<T>(Component:ComponentConstructor<T>): NotComponent;
+export function Not<T>(Component: ComponentConstructor<T>): NotComponent;
