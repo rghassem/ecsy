@@ -198,6 +198,10 @@
 	    if (this.hasEntity(entity)) {
 	      const index = entity.queries.get(this);
 
+	      if (this.entities[index] !== entity) {
+	        throw new Error("Ecsy Query: Entity index in query is not the same as entity's internal record. Was a query.results manipulated?");
+	      }
+
 	      //swap with last element of entities before removing in order to prevent disturbing other indices
 	      const lastEntity = this.entities.pop();
 	      if (lastEntity !== entity) {

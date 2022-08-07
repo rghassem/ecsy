@@ -45,7 +45,7 @@ Should be used inside of execute.
 
 * **removed**? : *[Entity](entity.md)[]*
 
-* **results**: *keyof [Entity]*
+* **results**: *keyof Entity[]*
 
 ___
 
