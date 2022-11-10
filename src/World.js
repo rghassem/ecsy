@@ -22,7 +22,7 @@ export class World {
 
     this.eventQueues = {};
 
-    if (hasWindow && typeof CustomEvent !== "undefined") {
+    if (hasWindow && typeof CustomEvent !== "undefined" && window.dispatchEvent !== undefined) {
       var event = new CustomEvent("ecsy-world-created", {
         detail: { world: this, version: Version }
       });
