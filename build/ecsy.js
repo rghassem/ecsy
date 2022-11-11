@@ -1408,7 +1408,8 @@
 
 	    this.eventQueues = {};
 
-	    if (hasWindow && typeof CustomEvent !== "undefined") {
+	    //Comment out for newer version of node. May break remote tools
+	    if (hasWindow && typeof CustomEvent !== "undefined" && window.dispatchEvent !== undefined) {
 	      var event = new CustomEvent("ecsy-world-created", {
 	        detail: { world: this, version: Version }
 	      });
