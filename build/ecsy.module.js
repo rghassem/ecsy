@@ -861,10 +861,9 @@ class EntityManager {
 
     if (~entity._ComponentTypes.indexOf(Component)) {
       // @todo Just on debug mode
+      // A string, not the entity itself: logging the object makes console capture serialize the whole world
       console.warn(
-        "Component type already exists on entity.",
-        entity,
-        Component.name
+        `ECSY: Component type ${getName(Component)} already exists on ${describeEntity(entity)}`
       );
       return;
     }
