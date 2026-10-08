@@ -794,6 +794,13 @@
 
 	SystemStateComponent.isSystemStateComponent = true;
 
+	/** log the entity using its compoents which describe it well - reza*/
+	function describeEntity(entity) {
+	  const live = entity._ComponentTypes.map(getName).join(", ");
+	  const removing = entity._ComponentTypesToRemove.map(getName).join(", ");
+	  return `entity ${entity.id} [${live}]${removing ? ` (being removed: ${removing})` : ""}`;
+	}
+
 	/**
 	 * @private
 	 * @class EntityManager
@@ -818,6 +825,7 @@
 	    // Deferred deletion
 	    this.entitiesWithComponentsToRemove = [];
 	    this.entitiesToRemove = [];
+	    this.orphanedRemovedComponents = [];
 	    this.deferredRemovalEnabled = true;
 	  }
 
@@ -855,6 +863,13 @@
 	   * @param {Object} values Optional values to replace the default attributes
 	   */
 	  entityAddComponent(entity, Component, values) {
+	    if (!entity.alive) {
+	      // Not prevented, but the dead entity joins queries and stays in them after it is released to the pool
+	      console.warn(
+	        `ECSY: Adding component ${getName(Component)} to ${describeEntity(entity)} after it was removed. It will be left in queries once released`
+	      );
+	    }
+
 	    if (~entity._ComponentTypes.indexOf(Component)) {
 	      // @todo Just on debug mode
 	      console.warn(
@@ -910,13 +925,23 @@
 	    if (immediately) {
 	      this._entityRemoveComponentSync(entity, Component, index);
 	    } else {
-	      if (entity._ComponentTypesToRemove.length === 0)
-	        this.entitiesWithComponentsToRemove.push(entity);
+	      var componentName = getName(Component);
+	      var alreadyPending = entity._componentsToRemove[componentName];
+
+	      if (alreadyPending !== undefined) {
+	        // Removed, re-added and removed again this frame. The type is already queued, and queueing it twice would
+	        // release nothing the second time and crash. Release the earlier instance on its own at the end of the frame.
+	        console.warn(
+	          `ECSY: Component ${componentName} removed from ${describeEntity(entity)} more than once in a frame. Removal handlers only see the latest instance`
+	        );
+	        this.orphanedRemovedComponents.push([Component, alreadyPending]);
+	      } else {
+	        if (entity._ComponentTypesToRemove.length === 0)
+	          this.entitiesWithComponentsToRemove.push(entity);
+	        entity._ComponentTypesToRemove.push(Component);
+	      }
 
 	      entity._ComponentTypes.splice(index, 1);
-	      entity._ComponentTypesToRemove.push(Component);
-
-	      var componentName = getName(Component);
 	      entity._componentsToRemove[componentName] =
 	        entity._components[componentName];
 	      delete entity._components[componentName];
@@ -969,6 +994,15 @@
 
 	    if (!~index) throw new Error("Tried to remove entity not in list");
 
+	    if (entity._queuedForRemoval) {
+	      // Queueing it again would release it twice: the second release removes whichever entity is last in the list,
+	      // and puts this one back in the pool twice. Still clear out anything added to it since the first removal.
+	      console.warn(`ECSY: ${describeEntity(entity)} removed more than once in a frame, not queueing it again`);
+	      this._queryManager.onEntityRemoved(entity);
+	      this.entityRemoveAllComponents(entity, immediately);
+	      return;
+	    }
+
 	    entity.alive = false;
 
 	    if (entity.numStateComponents === 0) {
@@ -978,6 +1012,7 @@
 	      if (immediately === true) {
 	        this._releaseEntity(entity, index);
 	      } else {
+	        entity._queuedForRemoval = true;
 	        this.entitiesToRemove.push(entity);
 	      }
 	    }
@@ -1035,6 +1070,13 @@
 	    }
 
 	    this.entitiesWithComponentsToRemove.length = 0;
+
+	    for (let i = 0; i < this.orphanedRemovedComponents.length; i++) {
+	      const [Component, component] = this.orphanedRemovedComponents[i];
+	      this.componentsManager._componentPool[componentPropertyName(Component)].release(component);
+	      this.world.componentsManager.componentRemovedFromEntity(Component);
+	    }
+	    this.orphanedRemovedComponents.length = 0;
 	  }
 
 	  /**
@@ -1287,6 +1329,8 @@
 
 	    this.alive = false;
 
+	    this._queuedForRemoval = false;
+
 	    //if there are state components on a entity, it can't be removed completely
 	    this.numStateComponents = 0;
 	  }
@@ -1384,6 +1428,7 @@
 	    this._ComponentTypes.length = 0;
 	    this.queries.clear();
 	    this._components = {};
+	    this._queuedForRemoval = false;
 	  }
 
 	  remove(forceImmediate) {
@@ -1408,7 +1453,6 @@
 
 	    this.eventQueues = {};
 
-	    //Comment out for newer version of node. May break remote tools
 	    if (hasWindow && typeof CustomEvent !== "undefined" && window.dispatchEvent !== undefined) {
 	      var event = new CustomEvent("ecsy-world-created", {
 	        detail: { world: this, version: Version }

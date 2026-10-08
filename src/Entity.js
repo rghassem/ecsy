@@ -29,6 +29,8 @@ export class Entity {
 
     this.alive = false;
 
+    this._queuedForRemoval = false;
+
     //if there are state components on a entity, it can't be removed completely
     this.numStateComponents = 0;
   }
@@ -126,6 +128,7 @@ export class Entity {
     this._ComponentTypes.length = 0;
     this.queries.clear();
     this._components = {};
+    this._queuedForRemoval = false;
   }
 
   remove(forceImmediate) {
